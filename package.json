@@ -1,0 +1,55 @@
+{
+  "name": "opencode-shakespeare-plugin",
+  "version": "0.1.0",
+  "description": "OpenCode plugin for building Nostr applications with mkstack, NIP-46 remote signing, Shakespeare Deploy, and Nostr Git",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "files": [
+    "dist",
+    "agent"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "opencode",
+    "plugin",
+    "nostr",
+    "nip-46",
+    "nip-34",
+    "nip-98",
+    "shakespeare",
+    "mkstack",
+    "remote-signing",
+    "deploy",
+    "ngit",
+    "nostr-git"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/derekross/opencode-shakespeare-plugin"
+  },
+  "dependencies": {
+    "@noble/hashes": "^1.6.1",
+    "@noble/secp256k1": "^2.2.3",
+    "@nostrify/nostrify": "^0.48.3",
+    "jszip": "^3.10.1",
+    "nostr-tools": "^2.10.4",
+    "qrcode-terminal": "^0.12.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@opencode-ai/plugin": "^1.1.13",
+    "@types/node": "^22.10.5",
+    "@types/ws": "^8.5.13",
+    "typescript": "^5.7.3"
+  },
+  "peerDependencies": {
+    "@opencode-ai/plugin": ">=1.0.0"
+  }
+}
