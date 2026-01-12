@@ -12,7 +12,13 @@ OpenCode plugin for building Nostr applications with mkstack and NIP-46 remote s
 
 ## Installation
 
-Add the plugin to your `opencode.json`:
+1. Install the plugin in your project:
+
+```bash
+npm install opencode-shakespeare-plugin
+```
+
+2. Add the plugin to your `opencode.json`:
 
 ```json
 {
@@ -26,6 +32,14 @@ Add the plugin to your `opencode.json`:
   }
 }
 ```
+
+3. **Temporary workaround**: There's an ESM bug in `@opencode-ai/plugin` that requires a patch. Run this after installing:
+
+```bash
+echo 'export * from "./tool.js";' > node_modules/@opencode-ai/plugin/dist/index.js
+```
+
+> **Note**: You'll need to run this patch again after running `npm install`. This will be fixed once the opencode team patches the ESM issue.
 
 ## Usage
 
