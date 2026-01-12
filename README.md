@@ -1,4 +1,4 @@
-# opencode-shakespeare-plugin
+# @shakespeare.diy/opencode-plugin
 
 OpenCode plugin for Shakespeare AI provider with NIP-46 remote signing and Nostr development tools.
 
@@ -22,7 +22,7 @@ mkdir -p ~/.config/opencode
 cat > ~/.config/opencode/opencode.json << 'EOF'
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-shakespeare-plugin"]
+  "plugin": ["@shakespeare.diy/opencode-plugin"]
 }
 EOF
 ```
@@ -36,7 +36,7 @@ Add to your project's `opencode.json`:
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-shakespeare-plugin"]
+  "plugin": ["@shakespeare.diy/opencode-plugin"]
 }
 ```
 
@@ -48,17 +48,17 @@ The Shakespeare agent provides natural language commands for Nostr development:
 
 ```bash
 mkdir -p ~/.config/opencode/agent
-cp node_modules/opencode-shakespeare-plugin/agent/shakespeare.md ~/.config/opencode/agent/
+cp node_modules/@shakespeare.diy/opencode-plugin/agent/shakespeare.md ~/.config/opencode/agent/
 ```
 
-### 3. (Optional) Add the Nostr MCP server
+### (Optional) Add the Nostr MCP server
 
 For enhanced Nostr functionality:
 
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-shakespeare-plugin"],
+  "plugin": ["@shakespeare.diy/opencode-plugin"],
   "mcp": {
     "nostr": {
       "type": "local",
@@ -118,7 +118,7 @@ Or set it in your `opencode.json`:
 
 ```json
 {
-  "plugin": ["opencode-shakespeare-plugin"],
+  "plugin": ["@shakespeare.diy/opencode-plugin"],
   "model": "shakespeare/claude-sonnet-4.5"
 }
 ```
@@ -246,8 +246,8 @@ Check that `~/.config/shakespeare/auth.json` exists after connecting. If it's be
 
 ```bash
 # Clone the repo
-git clone https://github.com/derekross/opencode-shakespeare-plugin
-cd opencode-shakespeare-plugin
+git clone https://gitlab.com/soapbox-pub/shakespeare-opencode-plugin
+cd shakespeare-opencode-plugin
 
 # Install dependencies
 npm install

@@ -137,7 +137,7 @@ async function ensureProviderConfig(directory: string): Promise<void> {
  * Usage in opencode.json:
  * ```json
  * {
- *   "plugin": ["opencode-shakespeare-plugin"]
+ *   "plugin": ["@shakespeare.diy/opencode-plugin"]
  * }
  * ```
  * 

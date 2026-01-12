@@ -14,7 +14,7 @@ const MKSTACK_REPO = 'https://gitlab.com/soapbox-pub/mkstack.git';
  */
 const OPENCODE_CONFIG = {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-shakespeare-plugin"],
+  "plugin": ["@shakespeare.diy/opencode-plugin"],
   "mcp": {
     "nostr": {
       "type": "local",

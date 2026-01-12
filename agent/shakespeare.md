@@ -65,7 +65,7 @@ The `shakespeare_deploy` tool deploys to shakespeare.wtf which is different from
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-shakespeare-plugin"],
+  "plugin": ["@shakespeare.diy/opencode-plugin"],
   "mcp": {
     "nostr": {
       "type": "local",
