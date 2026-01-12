@@ -33,7 +33,14 @@ npm install opencode-shakespeare-plugin
 }
 ```
 
-3. **Temporary workaround**: There's an ESM bug in `@opencode-ai/plugin` that requires a patch. Run this after installing:
+3. **Install the Shakespeare agent** (enables `@shakespeare` command):
+
+```bash
+mkdir -p ~/.config/opencode/agent
+cp node_modules/opencode-shakespeare-plugin/agent/shakespeare.md ~/.config/opencode/agent/
+```
+
+4. **Temporary workaround**: There's an ESM bug in `@opencode-ai/plugin` that requires a patch. Run this after installing:
 
 ```bash
 echo 'export * from "./tool.js";' > node_modules/@opencode-ai/plugin/dist/index.js
