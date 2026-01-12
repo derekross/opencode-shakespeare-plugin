@@ -5,9 +5,33 @@
 
 import { tool } from '@opencode-ai/plugin';
 import { getSigner, DEFAULT_RELAYS } from '../signer.js';
+import { xdgData } from 'xdg-basedir';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+
+/**
+ * Update OpenCode's auth.json to reflect the connection status
+ */
+async function updateOpencodeAuth(): Promise<void> {
+  if (!xdgData) return;
+  
+  const authPath = path.join(xdgData, 'opencode', 'auth.json');
+  const text = await fs.readFile(authPath, 'utf-8').catch(() => '{}');
+  const data = (() => {
+    try {
+      return JSON.parse(text);
+    } catch {
+      return {};
+    }
+  })();
+  
+  data['shakespeare'] = { type: 'api', key: 'nostr-nip46-connected' };
+  await fs.mkdir(path.dirname(authPath), { recursive: true });
+  await fs.writeFile(authPath, JSON.stringify(data, null, 2));
+}
 
 export const connect = tool({
-  description: `Initiate a Nostr remote signing connection using NIP-46. This will display a QR code that the user can scan with Amber (Android) or Primal (Android/iOS). The connection allows Shakespeare to sign Nostr events on behalf of the user without ever having access to their private key. Default relays: ${DEFAULT_RELAYS.join(', ')}`,
+  description: `Generate a nostrconnect:// URI and QR code for NIP-46 remote signing. Scan the QR code with Amber (Android) or Primal (Android/iOS) to connect. After scanning, run shakespeare_complete to finish the connection. Default relays: ${DEFAULT_RELAYS.join(', ')}`,
   args: {
     relays: tool.schema
       .string()
@@ -20,6 +44,8 @@ export const connect = tool({
     // Check if already connected
     if (signer.isConnected()) {
       const status = signer.getStatus();
+      // Make sure OpenCode auth is updated even if already connected
+      await updateOpencodeAuth();
       return `Already connected as ${status.npub}. Use shakespeare_disconnect first if you want to reconnect with a different identity.`;
     }
 
@@ -29,8 +55,9 @@ export const connect = tool({
       : undefined;
 
     try {
-      const result = await signer.connect(relays);
-      return result;
+      // Use two-step flow: just generate QR code, don't wait for completion
+      const result = await signer.initiateConnection(relays);
+      return `${result}\n\nAfter scanning the QR code, run shakespeare_complete to finish the connection.`;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       return `Connection failed: ${message}`;

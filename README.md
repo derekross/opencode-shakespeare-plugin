@@ -1,24 +1,41 @@
 # opencode-shakespeare-plugin
 
-OpenCode plugin for building Nostr applications with mkstack and NIP-46 remote signing.
+OpenCode plugin for Shakespeare AI provider with NIP-46 remote signing and Nostr development tools.
 
 ## Features
 
+- **Shakespeare AI Provider**: Use Claude and other models via Shakespeare AI with NIP-98 authentication
 - **NIP-46 Remote Signing**: Authenticate via QR code scan - your private key never leaves your signer app
-- **Shakespeare Deploy**: Deploy static sites to shakespeare.wtf with NIP-98 authentication
+- **Shakespeare Deploy**: Deploy static sites to shakespeare.wtf
 - **Nostr Git (ngit)**: Publish repositories to decentralized git hosting using NIP-34
 - **mkstack Integration**: Initialize new Nostr projects using the mkstack framework
 - **Shakespeare Agent**: Specialized AI agent for building Nostr applications
 
 ## Installation
 
-1. Install the plugin in your project:
+### 1. Add the plugin to your `opencode.json`:
 
-```bash
-npm install opencode-shakespeare-plugin
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["opencode-shakespeare-plugin"]
+}
 ```
 
-2. Add the plugin to your `opencode.json`:
+The plugin will automatically configure the Shakespeare AI provider and models on first run.
+
+### 2. (Optional) Install the Shakespeare agent
+
+The Shakespeare agent provides natural language commands for Nostr development:
+
+```bash
+mkdir -p ~/.config/opencode/agent
+cp node_modules/opencode-shakespeare-plugin/agent/shakespeare.md ~/.config/opencode/agent/
+```
+
+### 3. (Optional) Add the Nostr MCP server
+
+For enhanced Nostr functionality:
 
 ```json
 {
@@ -33,52 +50,74 @@ npm install opencode-shakespeare-plugin
 }
 ```
 
-3. **Install the Shakespeare agent** (enables `@shakespeare` command):
+## Authentication
 
-```bash
-mkdir -p ~/.config/opencode/agent
-cp node_modules/opencode-shakespeare-plugin/agent/shakespeare.md ~/.config/opencode/agent/
+Shakespeare AI uses NIP-46 remote signing for authentication. This means:
+- Your private key (nsec) never leaves your signer app
+- You authenticate by scanning a QR code
+- Authentication persists across sessions
+
+### Connect to Shakespeare AI
+
+1. Start OpenCode in your project
+2. Run `shakespeare_connect` - a QR code will be displayed
+3. Scan the QR code with your signer app (Amber or Primal)
+4. Approve the connection in your signer app
+5. Run `shakespeare_complete` to finish the connection
+
+```
+> shakespeare_connect
+
+[QR Code displayed]
+
+Scan with Amber (Android) or Primal (iOS/Android)
+
+> shakespeare_complete
+
+Connected successfully!
+User pubkey: npub1...
 ```
 
-4. **Temporary workaround**: There's an ESM bug in `@opencode-ai/plugin` that requires a patch. Run this after installing:
+### Check connection status
 
-```bash
-echo 'export * from "./tool.js";' > node_modules/@opencode-ai/plugin/dist/index.js
+```
+> shakespeare_status
+
+Connected: Yes
+Public Key: npub1...
+Relays: wss://relay.ditto.pub, wss://relay.primal.net
 ```
 
-> **Note**: You'll need to run this patch again after running `npm install`. This will be fixed once the opencode team patches the ESM issue.
+### Select Shakespeare AI model
 
-## Usage
+After connecting, select a Shakespeare model via `/models` or `/connect`:
 
-### Quick Start
+1. Press `/connect` and search for "Shakespeare"
+2. Select "Nostr (NIP-46)" authentication
+3. Choose a model (e.g., `claude-sonnet-4.5`)
 
-1. Start OpenCode in your project directory
-2. Invoke the Shakespeare agent: `@shakespeare`
-3. Tell Shakespeare what you want to do - it will handle authentication automatically
+Or set it in your `opencode.json`:
 
-### Natural Language Commands
+```json
+{
+  "plugin": ["opencode-shakespeare-plugin"],
+  "model": "shakespeare/claude-sonnet-4.5"
+}
+```
 
-The Shakespeare agent understands natural language. Just say:
+## Available Models
 
-**Deployment:**
-- "deploy to shakespeare"
-- "ship it"
-- "put my site live"
+The plugin automatically fetches available models from Shakespeare AI. Current models include:
 
-**Nostr Git:**
-- "publish to ngit"
-- "push to nostr git"
-- "commit to ngit"
+- `claude-sonnet-4.5` - Fast, capable model for most tasks
+- `claude-opus-4.5` - Most capable model for complex tasks
 
-**Building:**
-- "build me a Twitter clone"
-- "create a nostr app"
-
-### Available Tools
+## Available Tools
 
 | Tool | Description |
 |------|-------------|
-| `shakespeare_connect` | Display QR code and initiate NIP-46 connection |
+| `shakespeare_connect` | Display QR code to initiate NIP-46 connection |
+| `shakespeare_complete` | Complete the connection after scanning QR code |
 | `shakespeare_status` | Check authentication status |
 | `shakespeare_disconnect` | Disconnect and clear credentials |
 | `shakespeare_sign_event` | Sign a Nostr event using remote signer |
@@ -87,117 +126,111 @@ The Shakespeare agent understands natural language. Just say:
 | `shakespeare_deploy` | Deploy dist/ to shakespeare.wtf |
 | `shakespeare_ngit` | Publish repository to Nostr Git (NIP-34) |
 
-### Example: Deploy a Site
+## Usage Examples
+
+### Using Shakespeare AI for coding
+
+Once connected, Shakespeare AI works like any other provider:
 
 ```
-> @shakespeare deploy to shakespeare
+> Help me build a REST API endpoint
 
-Shakespeare: Let me build and deploy your project...
+[Claude responds via Shakespeare AI with NIP-98 authentication]
+```
 
-Building project...
-$ npm run build
+### Deploy a site
 
-Checking authentication...
-[QR code displayed if not connected]
+```
+> shakespeare_deploy
 
+Building site from dist/...
 Deploying to shakespeare.wtf...
 
-Your site is live at: https://myapp.shakespeare.wtf
+Your site is live at: https://yourapp.shakespeare.wtf
 ```
 
-### Example: Publish to Nostr Git
+### Publish to Nostr Git
 
 ```
-> @shakespeare publish to ngit
+> shakespeare_ngit
 
-Shakespeare: Publishing your repository to Nostr Git...
-
-[QR code displayed if not connected]
+Publishing repository to Nostr Git...
 
 Published!
 Repository: my-project
-Nostr URI: nostr://npub1.../my-project
-
-Clone with:
-  git clone nostr://npub1.../my-project
+Clone with: git clone nostr://npub1.../my-project
 ```
 
-### Example: Build an App
+### Initialize a new project
 
 ```
-> @shakespeare build me a decentralized Twitter clone
+> shakespeare_init my-nostr-app
 
-Shakespeare: Creating your project...
+Cloning mkstack template...
+Installing dependencies...
 
-[Initializes mkstack, reads AGENTS.md, builds features]
-
-Your app is ready! Run `npm run dev` to test it.
-Want me to deploy it to shakespeare.wtf?
+Project created at ./my-nostr-app
 ```
 
 ## Configuration
 
 ### Default Relays
 
-The plugin uses these relays for NIP-46 communication by default:
+The plugin uses these relays for NIP-46 communication:
 - `wss://relay.ditto.pub`
 - `wss://relay.primal.net`
 
-You can specify custom relays when connecting:
+Specify custom relays when connecting:
 
 ```
-> Use shakespeare_connect with relays "wss://my-relay.com,wss://other-relay.com"
+> shakespeare_connect with relays wss://my-relay.com,wss://other-relay.com
 ```
 
 ### Authentication Storage
 
-Credentials are stored in `~/.config/shakespeare/auth.json`. This includes:
+Credentials are stored in `~/.config/shakespeare/auth.json`:
 - Client keypair (for relay communication only)
 - Bunker public key
 - User public key
 - Connected relays
 
-Your **private key is never stored** - it remains in your signer app.
+**Your private key is never stored** - it remains in your signer app.
 
 ## Supported Signer Apps
 
 - [Amber](https://github.com/greenart7c3/Amber) (Android)
 - [Primal](https://primal.net/) (Android/iOS)
 
-## Shakespeare Deploy
+## Troubleshooting
 
-Deploy your built static site to shakespeare.wtf:
+### "Not connected to Nostr" error
 
-1. Build your project: `npm run build`
-2. Tell Shakespeare to deploy: `@shakespeare deploy`
-3. Your site will be live at `https://yourapp.shakespeare.wtf`
+Run `shakespeare_connect` followed by `shakespeare_complete` to establish a connection.
 
-The deployment uses NIP-98 HTTP authentication - your Nostr identity proves ownership.
+### Models not appearing
 
-## Nostr Git (NIP-34)
+The plugin auto-configures on first run. If models don't appear:
+1. Restart OpenCode
+2. Check that `opencode.json` has the `provider.shakespeare` section
+3. Run `/connect` and select Shakespeare AI
 
-Publish your repository to decentralized git hosting:
+### Connection not persisting
 
-1. Make sure you have commits in your repo
-2. Tell Shakespeare to publish: `@shakespeare publish to ngit`
-3. Your repo will be available at `nostr://npub1.../your-repo`
+Check that `~/.config/shakespeare/auth.json` exists after connecting. If it's being deleted, there may be a permission issue with the config directory.
 
-This creates:
-- **Kind 30617**: Repository announcement (clone URLs, relays)
-- **Kind 30618**: Repository state (branches, tags, HEAD)
+### QR code not scanning
 
-## Agent Definition
-
-The plugin includes a specialized agent definition at `agent/shakespeare.md`. The agent:
-
-- Handles authentication automatically
-- Understands natural language commands
-- Guides you through Nostr app development
-- Manages deployments and git publishing
+- Ensure your signer app supports NIP-46 (nostrconnect://)
+- Try different relays if the default ones are unreachable
+- Check that your phone and computer are on the same network (not required, but helps)
 
 ## Development
 
 ```bash
+# Clone the repo
+git clone https://github.com/derekross/opencode-shakespeare-plugin
+cd opencode-shakespeare-plugin
+
 # Install dependencies
 npm install
 

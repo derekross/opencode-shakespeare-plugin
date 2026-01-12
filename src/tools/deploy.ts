@@ -110,8 +110,8 @@ Make sure your build output includes an index.html file.`;
         zip.file(file.path, file.content);
       }
 
-      // Generate ZIP as blob
-      const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
+      // Generate ZIP as ArrayBuffer for Blob compatibility
+      const zipBuffer = await zip.generateAsync({ type: 'arraybuffer' });
       const zipBlob = new Blob([zipBuffer], { type: 'application/zip' });
 
       // Create FormData
