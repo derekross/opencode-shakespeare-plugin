@@ -1,13 +1,15 @@
 {
   "name": "@shakespeare.diy/opencode-plugin",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "OpenCode plugin for Shakespeare AI provider with NIP-98 auth, NIP-46 remote signing, Shakespeare Deploy, and Nostr Git",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
   "files": [
     "dist",
-    "agent"
+    "agent",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc",
