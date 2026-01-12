@@ -1,13 +1,15 @@
 {
-  "name": "opencode-shakespeare-plugin",
-  "version": "0.4.0",
+  "name": "@shakespeare.diy/opencode-plugin",
+  "version": "0.5.1",
   "description": "OpenCode plugin for Shakespeare AI provider with NIP-98 auth, NIP-46 remote signing, Shakespeare Deploy, and Nostr Git",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
   "files": [
     "dist",
-    "agent"
+    "agent",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc",
@@ -30,11 +32,11 @@
     "ngit",
     "nostr-git"
   ],
-  "author": "",
+  "author": "Derek Ross",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/derekross/opencode-shakespeare-plugin"
+    "url": "https://gitlab.com/soapbox-pub/shakespeare-opencode-plugin"
   },
   "dependencies": {
     "@noble/hashes": "^1.6.1",
