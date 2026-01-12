@@ -13,7 +13,25 @@ OpenCode plugin for Shakespeare AI provider with NIP-46 remote signing and Nostr
 
 ## Installation
 
-### 1. Add the plugin to your `opencode.json`:
+### Option A: Global Installation (Recommended)
+
+Install once and use in all projects:
+
+```bash
+mkdir -p ~/.config/opencode
+cat > ~/.config/opencode/opencode.json << 'EOF'
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["opencode-shakespeare-plugin"]
+}
+EOF
+```
+
+Then restart OpenCode - it will auto-install the plugin.
+
+### Option B: Per-Project Installation
+
+Add to your project's `opencode.json`:
 
 ```json
 {
@@ -24,7 +42,7 @@ OpenCode plugin for Shakespeare AI provider with NIP-46 remote signing and Nostr
 
 The plugin will automatically configure the Shakespeare AI provider and models on first run.
 
-### 2. (Optional) Install the Shakespeare agent
+### (Optional) Install the Shakespeare agent
 
 The Shakespeare agent provides natural language commands for Nostr development:
 
