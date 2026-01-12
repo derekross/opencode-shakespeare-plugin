@@ -1,6 +1,6 @@
 {
   "name": "opencode-shakespeare-plugin",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "OpenCode plugin for building Nostr applications with mkstack, NIP-46 remote signing, Shakespeare Deploy, and Nostr Git",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
