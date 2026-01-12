@@ -87,10 +87,24 @@ async function fetchShakespeareModels(): Promise<Record<string, any>> {
 }
 
 /**
- * Ensure Shakespeare provider is configured in the project
+ * Get the global OpenCode config directory
  */
-async function ensureProviderConfig(directory: string): Promise<void> {
-  const configPath = path.join(directory, 'opencode.json');
+function getGlobalConfigDir(): string {
+  const home = process.env.HOME || process.env.USERPROFILE || '';
+  return path.join(home, '.config', 'opencode');
+}
+
+/**
+ * Ensure Shakespeare provider is configured globally
+ */
+async function ensureProviderConfig(): Promise<void> {
+  const globalConfigDir = getGlobalConfigDir();
+  const configPath = path.join(globalConfigDir, 'opencode.json');
+  
+  // Ensure directory exists
+  if (!fs.existsSync(globalConfigDir)) {
+    fs.mkdirSync(globalConfigDir, { recursive: true });
+  }
   
   let config: any = {};
   try {
@@ -98,9 +112,10 @@ async function ensureProviderConfig(directory: string): Promise<void> {
     config = JSON.parse(content);
   } catch {
     // No existing config, will create new one
+    config = { "$schema": "https://opencode.ai/config.json" };
   }
   
-  // Check if shakespeare provider already exists
+  // Check if shakespeare provider already exists with models
   if (config.provider?.shakespeare?.models && Object.keys(config.provider.shakespeare.models).length > 0) {
     return; // Already configured
   }
@@ -116,7 +131,7 @@ async function ensureProviderConfig(directory: string): Promise<void> {
     models,
   };
   
-  // Write updated config
+  // Write updated config to global directory
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 }
 
@@ -143,9 +158,9 @@ async function ensureProviderConfig(directory: string): Promise<void> {
  * 
  * Then run `shakespeare_connect` to authenticate via QR code.
  */
-export const ShakespearePlugin: Plugin = async (input: PluginInput) => {
-  // Auto-configure Shakespeare provider in the project's opencode.json
-  await ensureProviderConfig(input.directory);
+export const ShakespearePlugin: Plugin = async (_input: PluginInput) => {
+  // Auto-configure Shakespeare provider in the global opencode.json
+  await ensureProviderConfig();
   
   return {
     // Register Shakespeare AI provider
