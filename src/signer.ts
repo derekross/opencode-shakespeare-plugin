@@ -142,7 +142,12 @@ export class ShakespeareSigner {
         this.bunkerSigner = null;
       }
       if (this._pool) {
+        // Close all relay connections
         this._pool.close(this.relays);
+        // Also try to destroy the pool entirely
+        if (typeof (this._pool as any).destroy === 'function') {
+          (this._pool as any).destroy();
+        }
         this._pool = null;
       }
     } finally {
