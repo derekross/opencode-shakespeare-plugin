@@ -113,60 +113,44 @@ export class ShakespeareSigner {
 
   constructor() {
     this.pool = new SimplePool();
-    // Try to restore from saved state
-    this.restore();
+    // Only restore credentials, don't create bunkerSigner/connections yet
+    this.restoreCredentials();
+  }
+  
+  /**
+   * Close pool connections to prevent background noise
+   */
+  private closeConnections(): void {
+    const restoreConsole = suppressConsole();
+    try {
+      if (this.bunkerSigner) {
+        this.bunkerSigner.close().catch(() => {});
+        this.bunkerSigner = null;
+      }
+      this.pool.close(this.relays);
+    } finally {
+      restoreConsole();
+    }
   }
 
   /**
-   * Restore signer state from disk
+   * Restore only credentials from disk (no connections)
    */
-  private restore(): boolean {
+  private restoreCredentials(): boolean {
     const state = loadAuthState();
     
     if (state) {
       try {
-        // Decode stored client secret key
         const decoded = nip19.decode(state.clientSecretKey);
         
         if (decoded.type === 'nsec') {
           this.clientSecretKey = decoded.data;
           this.userPubkey = state.userPubkey;
           this.relays = state.relays;
-          
-          // Suppress nostr-tools relay messages during restore
-          const restoreConsole = suppressConsole();
-          
-          try {
-            // Recreate BunkerSigner from stored state
-            // Try fromBunker (nostr-tools 2.19+), fall back to constructor (2.15-2.18)
-            const bunkerPointer = {
-              pubkey: state.bunkerPubkey,
-              relays: state.relays,
-              secret: null,
-            };
-            
-            if (typeof (BunkerSigner as any).fromBunker === 'function') {
-              this.bunkerSigner = (BunkerSigner as any).fromBunker(
-                this.clientSecretKey,
-                bunkerPointer,
-                { pool: this.pool }
-              );
-            } else {
-              this.bunkerSigner = new (BunkerSigner as any)(
-                this.clientSecretKey,
-                bunkerPointer,
-                { pool: this.pool }
-              );
-            }
-          } finally {
-            restoreConsole();
-          }
-          
           return true;
         }
       } catch {
-        // BunkerSigner creation may fail, but still restore basic state
-        // so isConnected() returns true based on saved credentials
+        // Decoding may fail, try to restore what we can
         if (state.userPubkey && state.clientSecretKey) {
           try {
             const decoded = nip19.decode(state.clientSecretKey);
@@ -443,9 +427,12 @@ export class ShakespeareSigner {
     const restoreConsole = suppressConsole();
     
     try {
-      return await this.bunkerSigner!.signEvent(eventTemplate);
+      const signedEvent = await this.bunkerSigner!.signEvent(eventTemplate);
+      return signedEvent;
     } finally {
       restoreConsole();
+      // Close connections after signing to prevent background noise
+      this.closeConnections();
     }
   }
 
