@@ -445,16 +445,17 @@ export class ShakespeareSigner {
   async signEvent(eventTemplate: EventTemplate): Promise<VerifiedEvent> {
     this.ensureBunkerSigner();
     
-    // Suppress nostr-tools relay messages during signing
-    const restoreConsole = suppressConsole();
-    
     try {
       const signedEvent = await this.bunkerSigner!.signEvent(eventTemplate);
       return signedEvent;
     } finally {
-      restoreConsole();
       // Close connections after signing to prevent background noise
-      this.closeConnections();
+      const restoreConsole = suppressConsole();
+      try {
+        this.closeConnections();
+      } finally {
+        restoreConsole();
+      }
     }
   }
 
