@@ -55,10 +55,10 @@ export const connect = tool({
       : undefined;
 
     try {
-      // Use blocking connect - waits for QR scan and approval
-      const result = await signer.connect(relays);
-      await updateOpencodeAuth();
-      return result;
+      // Use two-step flow: show QR code immediately
+      // User must run shakespeare_complete after scanning
+      const qrOutput = await signer.initiateConnection(relays);
+      return qrOutput;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       return `Connection failed: ${message}`;

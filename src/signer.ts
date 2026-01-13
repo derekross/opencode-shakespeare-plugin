@@ -40,12 +40,12 @@ function createNostrConnectURI(params: {
 }
 import type { EventTemplate, VerifiedEvent } from 'nostr-tools';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
-import { loadAuthState, saveAuthState, clearAuthState, type AuthState } from './storage.js';
+import { loadAuthState, saveAuthState, clearAuthState, savePendingConnection, loadPendingConnection, clearPendingConnection, type AuthState } from './storage.js';
 import { displayQRCode, formatConnectionInstructions } from './qrcode.js';
 
 /** Default relays for NIP-46 communication */
 export const DEFAULT_RELAYS = [
-  'wss://relay.damus.io',
+  'wss://relay.ditto.pub',
 ];
 
 /** Connection timeout in milliseconds (5 minutes) */
@@ -355,8 +355,16 @@ export class ShakespeareSigner {
       relays: this.relays,
     };
 
-    // Generate QR code
-    const qrString = await displayQRCode(nostrconnectUri, { small: false });
+    // Also persist to disk for the complete step
+    savePendingConnection({
+      clientSecretKey: nip19.nsecEncode(clientSecretKey),
+      clientPubkey,
+      nostrconnectUri,
+      relays: this.relays,
+    });
+
+    // Generate QR code (small format for terminal)
+    const qrString = await displayQRCode(nostrconnectUri, { small: true });
     return formatConnectionInstructions(nostrconnectUri, qrString);
   }
 

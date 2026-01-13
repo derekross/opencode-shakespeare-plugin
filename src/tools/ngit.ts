@@ -19,7 +19,8 @@ import { nip19 } from 'nostr-tools';
 
 // Default GRASP servers for ngit
 const DEFAULT_GRASP_SERVERS = [
-  'wss://relay.ditto.pub',
+  'wss://git.shakespeare.diy',
+  'wss://relay.ngit.dev',
 ];
 
 interface RepoState {

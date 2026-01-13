@@ -3,7 +3,7 @@
  * Displays nostrconnect:// URIs as scannable QR codes
  */
 
-import * as qrcode from 'qrcode-terminal';
+import qrcode from 'qrcode-terminal';
 
 export interface QRDisplayOptions {
   /** Whether to use small QR code (default: false for better scanning) */
@@ -35,24 +35,18 @@ export function displayQRCode(data: string, options: QRDisplayOptions = {}): Pro
  * @returns Formatted output string
  */
 export function formatConnectionInstructions(nostrconnectUri: string, qrString: string): string {
-  const border = '─'.repeat(60);
+  // Strip ANSI codes from QR and use unicode blocks instead
+  const cleanQR = qrString
+    .replace(/\x1b\[47m  \x1b\[0m/g, '██')  // white -> filled block
+    .replace(/\x1b\[40m  \x1b\[0m/g, '  ')  // black -> space
+    .replace(/\x1b\[[0-9;]*m/g, '');         // strip any remaining ANSI
   
-  return `
-┌${border}┐
-│  Shakespeare - Nostr Remote Signing                              
-├${border}┤
-│                                                                   
-│  Scan this QR code with your Nostr signer app:                   
-│  Amber (Android) or Primal (Android/iOS)                      
-│                                                                   
-${qrString.split('\n').map(line => `│  ${line}`).join('\n')}
-│                                                                   
-│  Or paste this URI into your bunker:                             
-│  ${nostrconnectUri.length > 55 ? nostrconnectUri.substring(0, 55) + '...' : nostrconnectUri}
-│                                                                   
-│  Waiting for connection... (timeout in 5 minutes)                
-└${border}┘
-`.trim();
+  // Return as JSON so it's treated as data, not prose
+  return JSON.stringify({
+    qr_code: cleanQR,
+    uri: nostrconnectUri,
+    instructions: "Scan QR or paste URI into signer (Amber/nsec.app/Primal), then run: shakespeare_complete"
+  }, null, 2);
 }
 
 /**

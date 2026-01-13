@@ -5,7 +5,7 @@
  * using our NIP-46 remote signer (no nsec required).
  */
 
-import { getToken } from 'nostr-tools/nip98';
+import { NIP98Client, type NostrSigner, type NostrEvent } from '@nostrify/nostrify';
 import { xdgData } from 'xdg-basedir';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -98,54 +98,47 @@ export async function configureShakespeareProvider(input: any): Promise<void> {
 }
 
 /**
+ * Create a NostrSigner adapter that wraps our NIP-46 signer
+ */
+function createNostrSigner(): NostrSigner {
+  const signer = getSigner();
+  
+  return {
+    async getPublicKey(): Promise<string> {
+      const status = signer.getStatus();
+      return status.userPubkey || '';
+    },
+    async signEvent(event: Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>): Promise<NostrEvent> {
+      return signer.signEvent(event as any);
+    },
+  };
+}
+
+/**
  * Create a fetch wrapper that adds NIP-98 authentication to requests
  */
 function createNip98Fetch(): typeof fetch {
-  return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    // Check auth state directly from file to handle module isolation
-    const authState = loadAuthState();
-    if (!authState) {
-      throw new Error('Not connected to Nostr. Use shakespeare_connect first.');
-    }
-    
-    // Get or restore the signer
-    const signer = getSigner();
-    
-    // If signer isn't connected but we have auth state, it should restore automatically
-    // via the constructor. If still not connected, something is wrong.
-    if (!signer.isConnected()) {
-      throw new Error('Failed to restore Nostr connection. Try shakespeare_connect again.');
-    }
+  // Check auth state directly from file to handle module isolation
+  const authState = loadAuthState();
+  if (!authState) {
+    throw new Error('Not connected to Nostr. Use shakespeare_connect first.');
+  }
+  
+  // Get or restore the signer
+  const signer = getSigner();
+  
+  // If signer isn't connected but we have auth state, it should restore automatically
+  if (!signer.isConnected()) {
+    throw new Error('Failed to restore Nostr connection. Try shakespeare_connect again.');
+  }
 
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-    const method = init?.method || 'GET';
-    
-    // Get payload for POST/PUT requests
-    let payload: Record<string, any> | undefined;
-    if (init?.body && typeof init.body === 'string') {
-      try {
-        payload = JSON.parse(init.body);
-      } catch {
-        // Not JSON, skip payload
-      }
-    }
+  // Create NIP98Client with our NIP-46 signer adapter
+  const nip98Client = new NIP98Client({
+    signer: createNostrSigner(),
+  });
 
-    // Generate NIP-98 token using nostr-tools
-    const token = await getToken(
-      url,
-      method,
-      (event) => signer.signEvent(event),
-      true, // Include "Nostr " scheme
-      payload
-    );
-
-    const headers = new Headers(init?.headers);
-    headers.set('Authorization', token);
-
-    return fetch(input, {
-      ...init,
-      headers,
-    });
+  return (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    return nip98Client.fetch(input, init);
   };
 }
 

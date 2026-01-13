@@ -152,4 +152,4 @@ Before any deploy or publish action:
 ## Configuration
 
 - Deploy host: shakespeare.wtf
-- Relays: wss://relay.ditto.pub, wss://relay.primal.net
+- Relays: wss://relay.nsec.app

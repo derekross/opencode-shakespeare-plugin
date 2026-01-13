@@ -90,3 +90,48 @@ export function isAuthenticated(): boolean {
 export function getConfigDir(): string {
   return CONFIG_DIR;
 }
+
+export interface PendingConnection {
+  clientSecretKey: string;
+  clientPubkey: string;
+  nostrconnectUri: string;
+  relays: string[];
+}
+
+const PENDING_FILE = join(CONFIG_DIR, 'pending.json');
+
+/**
+ * Save pending connection state
+ */
+export function savePendingConnection(pending: PendingConnection): void {
+  ensureConfigDir();
+  writeFileSync(PENDING_FILE, JSON.stringify(pending, null, 2), 'utf-8');
+}
+
+/**
+ * Load pending connection state
+ */
+export function loadPendingConnection(): PendingConnection | null {
+  try {
+    if (!existsSync(PENDING_FILE)) {
+      return null;
+    }
+    const data = readFileSync(PENDING_FILE, 'utf-8');
+    return JSON.parse(data) as PendingConnection;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Clear pending connection state
+ */
+export function clearPendingConnection(): void {
+  try {
+    if (existsSync(PENDING_FILE)) {
+      unlinkSync(PENDING_FILE);
+    }
+  } catch {
+    // Ignore errors
+  }
+}

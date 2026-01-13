@@ -103,7 +103,7 @@ User pubkey: npub1...
 
 Connected: Yes
 Public Key: npub1...
-Relays: wss://relay.ditto.pub, wss://relay.primal.net
+Relays: wss://relay.nsec.app
 ```
 
 ### Select Shakespeare AI model
@@ -194,9 +194,8 @@ Project created at ./my-nostr-app
 
 ### Default Relays
 
-The plugin uses these relays for NIP-46 communication:
-- `wss://relay.ditto.pub`
-- `wss://relay.primal.net`
+The plugin uses this relay for NIP-46 communication:
+- `wss://relay.nsec.app`
 
 Specify custom relays when connecting:
 
