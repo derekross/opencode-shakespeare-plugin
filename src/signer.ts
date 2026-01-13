@@ -10,26 +10,6 @@ import { BunkerSigner } from 'nostr-tools/nip46';
 import { SimplePool } from 'nostr-tools/pool';
 
 /**
- * Suppress all console output during nostr-tools operations
- * to prevent relay NOTICE/disconnect messages from polluting the UI
- */
-function suppressConsole(): () => void {
-  const originalDebug = console.debug;
-  const originalWarn = console.warn;
-  const originalLog = console.log;
-  
-  console.debug = () => {};
-  console.warn = () => {};
-  console.log = () => {};
-  
-  return () => {
-    console.debug = originalDebug;
-    console.warn = originalWarn;
-    console.log = originalLog;
-  };
-}
-
-/**
  * Create a nostrconnect:// URI manually
  * (createNostrConnectURI was added in nostr-tools 2.19+, so we build it ourselves for compatibility)
  */
@@ -60,7 +40,7 @@ function createNostrConnectURI(params: {
 }
 import type { EventTemplate, VerifiedEvent } from 'nostr-tools';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
-import { loadAuthState, saveAuthState, clearAuthState, type AuthState, savePendingConnection, loadPendingConnection, clearPendingConnection, type PendingConnectionState } from './storage.js';
+import { loadAuthState, saveAuthState, clearAuthState, type AuthState } from './storage.js';
 import { displayQRCode, formatConnectionInstructions } from './qrcode.js';
 
 /** Default relays for NIP-46 communication */
@@ -92,37 +72,12 @@ export interface SignerStatus {
 }
 
 /**
- * Pending connection state for two-step connect flow (in-memory)
+ * Pending connection state for two-step connect flow
  */
 interface PendingConnection {
   clientSecretKey: Uint8Array;
   nostrconnectUri: string;
   relays: string[];
-  /** Promise that resolves when bunker connects (if listener is active) */
-  connectionPromise?: Promise<BunkerSigner>;
-}
-
-/**
- * Load pending connection from disk and convert to in-memory format
- */
-function loadPendingConnectionFromDisk(): PendingConnection | null {
-  const state = loadPendingConnection();
-  if (!state) return null;
-  
-  try {
-    const decoded = nip19.decode(state.clientSecretKey);
-    if (decoded.type === 'nsec') {
-      return {
-        clientSecretKey: decoded.data,
-        nostrconnectUri: state.nostrconnectUri,
-        relays: state.relays,
-      };
-    }
-  } catch {
-    // Invalid state, clear it
-    clearPendingConnection();
-  }
-  return null;
 }
 
 /**
@@ -139,17 +94,18 @@ export class ShakespeareSigner {
   constructor() {
     this.pool = new SimplePool();
     // Try to restore from saved state
-    this.restoreCredentials();
+    this.restore();
   }
 
   /**
    * Restore signer state from disk
    */
-  private restoreCredentials(): boolean {
+  private restore(): boolean {
     const state = loadAuthState();
     
     if (state) {
       try {
+        // Decode stored client secret key
         const decoded = nip19.decode(state.clientSecretKey);
         
         if (decoded.type === 'nsec') {
@@ -157,32 +113,41 @@ export class ShakespeareSigner {
           this.userPubkey = state.userPubkey;
           this.relays = state.relays;
           
-          // Recreate BunkerSigner from stored state
-          const bunkerPointer = {
-            pubkey: state.bunkerPubkey,
-            relays: state.relays,
-            secret: null,
-          };
+          // Suppress nostr-tools relay messages during restore
+          const originalDebug = console.debug;
+          console.debug = () => {};
           
-          // Try fromBunker (nostr-tools 2.19+), fall back to constructor (2.15-2.18)
-          if (typeof (BunkerSigner as any).fromBunker === 'function') {
-            this.bunkerSigner = (BunkerSigner as any).fromBunker(
-              this.clientSecretKey,
-              bunkerPointer,
-              { pool: this.pool }
-            );
-          } else {
-            this.bunkerSigner = new (BunkerSigner as any)(
-              this.clientSecretKey,
-              bunkerPointer,
-              { pool: this.pool }
-            );
+          try {
+            // Recreate BunkerSigner from stored state
+            // Try fromBunker (nostr-tools 2.19+), fall back to constructor (2.15-2.18)
+            const bunkerPointer = {
+              pubkey: state.bunkerPubkey,
+              relays: state.relays,
+              secret: null,
+            };
+            
+            if (typeof (BunkerSigner as any).fromBunker === 'function') {
+              this.bunkerSigner = (BunkerSigner as any).fromBunker(
+                this.clientSecretKey,
+                bunkerPointer,
+                { pool: this.pool }
+              );
+            } else {
+              this.bunkerSigner = new (BunkerSigner as any)(
+                this.clientSecretKey,
+                bunkerPointer,
+                { pool: this.pool }
+              );
+            }
+          } finally {
+            console.debug = originalDebug;
           }
           
           return true;
         }
       } catch {
         // BunkerSigner creation may fail, but still restore basic state
+        // so isConnected() returns true based on saved credentials
         if (state.userPubkey && state.clientSecretKey) {
           try {
             const decoded = nip19.decode(state.clientSecretKey);
@@ -223,26 +188,34 @@ export class ShakespeareSigner {
       throw new Error('No auth state found. Use shakespeare_connect first.');
     }
     
-    const bunkerPointer = {
-      pubkey: state.bunkerPubkey,
-      relays: state.relays,
-      secret: null,
-    };
+    // Suppress nostr-tools relay messages during signer creation
+    const originalDebug = console.debug;
+    console.debug = () => {};
     
-    // Try fromBunker (nostr-tools 2.19+), fall back to constructor (2.15-2.18)
-    if (typeof (BunkerSigner as any).fromBunker === 'function') {
-      this.bunkerSigner = (BunkerSigner as any).fromBunker(
-        this.clientSecretKey,
-        bunkerPointer,
-        { pool: this.pool }
-      );
-    } else {
-      // Older versions have public constructor
-      this.bunkerSigner = new (BunkerSigner as any)(
-        this.clientSecretKey,
-        bunkerPointer,
-        { pool: this.pool }
-      );
+    try {
+      const bunkerPointer = {
+        pubkey: state.bunkerPubkey,
+        relays: state.relays,
+        secret: null,
+      };
+      
+      // Try fromBunker (nostr-tools 2.19+), fall back to constructor (2.15-2.18)
+      if (typeof (BunkerSigner as any).fromBunker === 'function') {
+        this.bunkerSigner = (BunkerSigner as any).fromBunker(
+          this.clientSecretKey,
+          bunkerPointer,
+          { pool: this.pool }
+        );
+      } else {
+        // Older versions have public constructor
+        this.bunkerSigner = new (BunkerSigner as any)(
+          this.clientSecretKey,
+          bunkerPointer,
+          { pool: this.pool }
+        );
+      }
+    } finally {
+      console.debug = originalDebug;
     }
   }
 
@@ -376,30 +349,12 @@ export class ShakespeareSigner {
       perms: ['sign_event'],
     });
 
-    // Start listening for the bunker connection IMMEDIATELY
-    // This is crucial - we must be listening before the user approves in Amber
-    const connectionPromise = BunkerSigner.fromURI(
-      clientSecretKey,
-      nostrconnectUri,
-      { pool: this.pool },
-      CONNECTION_TIMEOUT
-    );
-
-    // Save pending connection state (both in-memory and to disk)
+    // Save pending connection state
     this.pendingConnection = {
       clientSecretKey,
       nostrconnectUri,
       relays: this.relays,
-      connectionPromise,
     };
-    
-    // Persist to disk so it survives process restarts (but promise won't persist)
-    savePendingConnection({
-      clientSecretKey: nip19.nsecEncode(clientSecretKey),
-      nostrconnectUri,
-      relays: this.relays,
-      createdAt: Date.now(),
-    });
 
     // Generate QR code
     const qrString = await displayQRCode(nostrconnectUri, { small: false });
@@ -410,46 +365,27 @@ export class ShakespeareSigner {
    * Check if there's a pending connection waiting to be completed
    */
   hasPendingConnection(): boolean {
-    // Check in-memory first, then disk
-    if (this.pendingConnection !== null) return true;
-    return loadPendingConnection() !== null;
+    return this.pendingConnection !== null;
   }
 
   /**
    * Complete a pending connection (step 2 of two-step flow)
    */
   async completeConnection(timeoutMs: number = CONNECTION_TIMEOUT): Promise<string> {
-    // Try to load from memory first, then from disk
-    let pending = this.pendingConnection;
-    if (!pending) {
-      const diskPending = loadPendingConnectionFromDisk();
-      if (diskPending) {
-        // Loaded from disk - need to start a new listener
-        // This happens if OpenCode was restarted between connect and complete
-        pending = diskPending;
-      }
-    }
-    
-    if (!pending) {
+    if (!this.pendingConnection) {
       throw new Error('No pending connection. Run shakespeare_connect first.');
     }
 
-    const { clientSecretKey, nostrconnectUri, relays, connectionPromise } = pending;
+    const { clientSecretKey, nostrconnectUri, relays } = this.pendingConnection;
     
     try {
-      // If we have an active connection promise (listener started in initiateConnection),
-      // just await it. Otherwise start a new listener (fallback for process restart).
-      if (connectionPromise) {
-        this.bunkerSigner = await connectionPromise;
-      } else {
-        // Fallback: start listening now (will miss ACK if already sent)
-        this.bunkerSigner = await BunkerSigner.fromURI(
-          clientSecretKey,
-          nostrconnectUri,
-          { pool: this.pool },
-          timeoutMs
-        );
-      }
+      // Wait for bunker to connect
+      this.bunkerSigner = await BunkerSigner.fromURI(
+        clientSecretKey,
+        nostrconnectUri,
+        { pool: this.pool },
+        timeoutMs
+      );
 
       // Get the user's public key
       this.userPubkey = await this.bunkerSigner.getPublicKey();
@@ -468,15 +404,13 @@ export class ShakespeareSigner {
       };
       saveAuthState(state);
 
-      // Clear pending connection (both in-memory and disk)
+      // Clear pending connection
       this.pendingConnection = null;
-      clearPendingConnection();
 
       return `Connected successfully!\nUser pubkey: ${this.getUserNpub()}`;
     } catch (error) {
-      // Clear pending on failure (both in-memory and disk)
+      // Clear pending on failure
       this.pendingConnection = null;
-      clearPendingConnection();
       throw error;
     }
   }
@@ -487,11 +421,15 @@ export class ShakespeareSigner {
   async signEvent(eventTemplate: EventTemplate): Promise<VerifiedEvent> {
     this.ensureBunkerSigner();
     
-    const signedEvent = await this.bunkerSigner!.signEvent(eventTemplate);
-    return signedEvent;
-    // Note: We don't close connections here anymore because:
-    // 1. It breaks subsequent signing attempts
-    // 2. The relay ping timeouts are less disruptive than broken signing
+    // Suppress nostr-tools relay NOTICE messages during signing
+    const originalDebug = console.debug;
+    console.debug = () => {};
+    
+    try {
+      return await this.bunkerSigner!.signEvent(eventTemplate);
+    } finally {
+      console.debug = originalDebug;
+    }
   }
 
   /**

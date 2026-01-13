@@ -24,20 +24,8 @@ export interface AuthState {
   permissions: string[];
 }
 
-export interface PendingConnectionState {
-  /** Client's secret key (nsec format) */
-  clientSecretKey: string;
-  /** The nostrconnect:// URI */
-  nostrconnectUri: string;
-  /** Relays for NIP-46 communication */
-  relays: string[];
-  /** Timestamp when pending connection was created */
-  createdAt: number;
-}
-
 const CONFIG_DIR = join(homedir(), '.config', 'shakespeare');
 const AUTH_FILE = join(CONFIG_DIR, 'auth.json');
-const PENDING_FILE = join(CONFIG_DIR, 'pending.json');
 
 /**
  * Ensure the config directory exists
@@ -101,45 +89,4 @@ export function isAuthenticated(): boolean {
  */
 export function getConfigDir(): string {
   return CONFIG_DIR;
-}
-
-/**
- * Save pending connection state to disk
- * @param state - Pending connection state to persist
- */
-export function savePendingConnection(state: PendingConnectionState): void {
-  ensureConfigDir();
-  writeFileSync(PENDING_FILE, JSON.stringify(state, null, 2), 'utf-8');
-}
-
-/**
- * Load pending connection state from disk
- * @returns Pending connection state if exists, null otherwise
- */
-export function loadPendingConnection(): PendingConnectionState | null {
-  try {
-    if (!existsSync(PENDING_FILE)) {
-      return null;
-    }
-    const data = readFileSync(PENDING_FILE, 'utf-8');
-    return JSON.parse(data) as PendingConnectionState;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Clear pending connection state
- * @returns true if state was cleared, false if no state existed
- */
-export function clearPendingConnection(): boolean {
-  try {
-    if (existsSync(PENDING_FILE)) {
-      unlinkSync(PENDING_FILE);
-      return true;
-    }
-    return false;
-  } catch {
-    return false;
-  }
 }
