@@ -105,53 +105,20 @@ interface PendingConnection {
  */
 export class ShakespeareSigner {
   private bunkerSigner: BunkerSigner | null = null;
-  private _pool: SimplePool | null = null;
+  private pool: SimplePool;
   private clientSecretKey: Uint8Array | null = null;
   private userPubkey: string | null = null;
   private relays: string[] = DEFAULT_RELAYS;
   private pendingConnection: PendingConnection | null = null;
 
   constructor() {
-    // Only restore credentials, don't create any connections
+    this.pool = new SimplePool();
+    // Try to restore from saved state
     this.restoreCredentials();
-  }
-  
-  /**
-   * Get pool lazily - only create when needed
-   */
-  private get pool(): SimplePool {
-    if (!this._pool) {
-      this._pool = new SimplePool();
-    }
-    return this._pool;
-  }
-  
-  /**
-   * Close pool connections to prevent background noise
-   */
-  private closeConnections(): void {
-    const restoreConsole = suppressConsole();
-    try {
-      if (this.bunkerSigner) {
-        this.bunkerSigner.close().catch(() => {});
-        this.bunkerSigner = null;
-      }
-      if (this._pool) {
-        // Close all relay connections
-        this._pool.close(this.relays);
-        // Also try to destroy the pool entirely
-        if (typeof (this._pool as any).destroy === 'function') {
-          (this._pool as any).destroy();
-        }
-        this._pool = null;
-      }
-    } finally {
-      restoreConsole();
-    }
   }
 
   /**
-   * Restore only credentials from disk (no connections)
+   * Restore signer state from disk
    */
   private restoreCredentials(): boolean {
     const state = loadAuthState();
@@ -164,10 +131,33 @@ export class ShakespeareSigner {
           this.clientSecretKey = decoded.data;
           this.userPubkey = state.userPubkey;
           this.relays = state.relays;
+          
+          // Recreate BunkerSigner from stored state
+          const bunkerPointer = {
+            pubkey: state.bunkerPubkey,
+            relays: state.relays,
+            secret: null,
+          };
+          
+          // Try fromBunker (nostr-tools 2.19+), fall back to constructor (2.15-2.18)
+          if (typeof (BunkerSigner as any).fromBunker === 'function') {
+            this.bunkerSigner = (BunkerSigner as any).fromBunker(
+              this.clientSecretKey,
+              bunkerPointer,
+              { pool: this.pool }
+            );
+          } else {
+            this.bunkerSigner = new (BunkerSigner as any)(
+              this.clientSecretKey,
+              bunkerPointer,
+              { pool: this.pool }
+            );
+          }
+          
           return true;
         }
       } catch {
-        // Decoding may fail, try to restore what we can
+        // BunkerSigner creation may fail, but still restore basic state
         if (state.userPubkey && state.clientSecretKey) {
           try {
             const decoded = nip19.decode(state.clientSecretKey);
