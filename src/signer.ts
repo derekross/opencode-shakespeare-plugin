@@ -46,7 +46,6 @@ import { displayQRCode, formatConnectionInstructions } from './qrcode.js';
 /** Default relays for NIP-46 communication */
 export const DEFAULT_RELAYS = [
   'wss://relay.ditto.pub',
-  'wss://relay.primal.net',
 ];
 
 /** Connection timeout in milliseconds (5 minutes) */
