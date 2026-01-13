@@ -77,9 +77,8 @@ export async function configureShakespeareProvider(input: any): Promise<void> {
   input.provider['shakespeare'] = provider;
 
   // Check if already connected via NIP-46 and auto-setup auth
-  // Only check auth state from file - don't create signer instance
-  const authState = loadAuthState();
-  if (authState?.userPubkey) {
+  const signer = getSigner();
+  if (signer.isConnected()) {
     // Already authenticated via NIP-46, set up auth.json
     if (xdgData) {
       const authPath = path.join(xdgData, 'opencode', 'auth.json');
