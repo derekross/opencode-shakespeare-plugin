@@ -445,18 +445,11 @@ export class ShakespeareSigner {
   async signEvent(eventTemplate: EventTemplate): Promise<VerifiedEvent> {
     this.ensureBunkerSigner();
     
-    try {
-      const signedEvent = await this.bunkerSigner!.signEvent(eventTemplate);
-      return signedEvent;
-    } finally {
-      // Close connections after signing to prevent background noise
-      const restoreConsole = suppressConsole();
-      try {
-        this.closeConnections();
-      } finally {
-        restoreConsole();
-      }
-    }
+    const signedEvent = await this.bunkerSigner!.signEvent(eventTemplate);
+    return signedEvent;
+    // Note: We don't close connections here anymore because:
+    // 1. It breaks subsequent signing attempts
+    // 2. The relay ping timeouts are less disruptive than broken signing
   }
 
   /**
