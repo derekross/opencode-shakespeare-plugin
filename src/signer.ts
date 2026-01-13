@@ -98,6 +98,8 @@ interface PendingConnection {
   clientSecretKey: Uint8Array;
   nostrconnectUri: string;
   relays: string[];
+  /** Promise that resolves when bunker connects (if listener is active) */
+  connectionPromise?: Promise<BunkerSigner>;
 }
 
 /**
@@ -374,14 +376,24 @@ export class ShakespeareSigner {
       perms: ['sign_event'],
     });
 
+    // Start listening for the bunker connection IMMEDIATELY
+    // This is crucial - we must be listening before the user approves in Amber
+    const connectionPromise = BunkerSigner.fromURI(
+      clientSecretKey,
+      nostrconnectUri,
+      { pool: this.pool },
+      CONNECTION_TIMEOUT
+    );
+
     // Save pending connection state (both in-memory and to disk)
     this.pendingConnection = {
       clientSecretKey,
       nostrconnectUri,
       relays: this.relays,
+      connectionPromise,
     };
     
-    // Persist to disk so it survives process restarts
+    // Persist to disk so it survives process restarts (but promise won't persist)
     savePendingConnection({
       clientSecretKey: nip19.nsecEncode(clientSecretKey),
       nostrconnectUri,
@@ -410,23 +422,34 @@ export class ShakespeareSigner {
     // Try to load from memory first, then from disk
     let pending = this.pendingConnection;
     if (!pending) {
-      pending = loadPendingConnectionFromDisk();
+      const diskPending = loadPendingConnectionFromDisk();
+      if (diskPending) {
+        // Loaded from disk - need to start a new listener
+        // This happens if OpenCode was restarted between connect and complete
+        pending = diskPending;
+      }
     }
     
     if (!pending) {
       throw new Error('No pending connection. Run shakespeare_connect first.');
     }
 
-    const { clientSecretKey, nostrconnectUri, relays } = pending;
+    const { clientSecretKey, nostrconnectUri, relays, connectionPromise } = pending;
     
     try {
-      // Wait for bunker to connect
-      this.bunkerSigner = await BunkerSigner.fromURI(
-        clientSecretKey,
-        nostrconnectUri,
-        { pool: this.pool },
-        timeoutMs
-      );
+      // If we have an active connection promise (listener started in initiateConnection),
+      // just await it. Otherwise start a new listener (fallback for process restart).
+      if (connectionPromise) {
+        this.bunkerSigner = await connectionPromise;
+      } else {
+        // Fallback: start listening now (will miss ACK if already sent)
+        this.bunkerSigner = await BunkerSigner.fromURI(
+          clientSecretKey,
+          nostrconnectUri,
+          { pool: this.pool },
+          timeoutMs
+        );
+      }
 
       // Get the user's public key
       this.userPubkey = await this.bunkerSigner.getPublicKey();
