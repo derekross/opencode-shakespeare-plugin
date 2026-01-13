@@ -105,16 +105,30 @@ interface PendingConnection {
  */
 export class ShakespeareSigner {
   private bunkerSigner: BunkerSigner | null = null;
-  private pool: SimplePool;
+  private _pool: SimplePool | null = null;
   private clientSecretKey: Uint8Array | null = null;
   private userPubkey: string | null = null;
   private relays: string[] = DEFAULT_RELAYS;
   private pendingConnection: PendingConnection | null = null;
 
   constructor() {
-    this.pool = new SimplePool();
-    // Only restore credentials, don't create bunkerSigner/connections yet
+    // Only restore credentials, don't create any connections
     this.restoreCredentials();
+  }
+  
+  /**
+   * Get pool lazily - only create when needed
+   */
+  private get pool(): SimplePool {
+    if (!this._pool) {
+      const restoreConsole = suppressConsole();
+      try {
+        this._pool = new SimplePool();
+      } finally {
+        restoreConsole();
+      }
+    }
+    return this._pool;
   }
   
   /**
@@ -127,7 +141,10 @@ export class ShakespeareSigner {
         this.bunkerSigner.close().catch(() => {});
         this.bunkerSigner = null;
       }
-      this.pool.close(this.relays);
+      if (this._pool) {
+        this._pool.close(this.relays);
+        this._pool = null;
+      }
     } finally {
       restoreConsole();
     }
