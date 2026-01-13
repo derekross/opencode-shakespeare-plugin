@@ -31,7 +31,7 @@ async function updateOpencodeAuth(): Promise<void> {
 }
 
 export const connect = tool({
-  description: `Generate a nostrconnect:// URI and QR code for NIP-46 remote signing. Scan the QR code with Amber (Android) or Primal (Android/iOS) to connect. After scanning, run shakespeare_complete to finish the connection. Default relays: ${DEFAULT_RELAYS.join(', ')}`,
+  description: `Generate a nostrconnect:// URI and QR code for NIP-46 remote signing. Scan the QR code with Amber (Android) or Primal (Android/iOS) to connect. This will wait up to 5 minutes for you to scan and approve. Default relays: ${DEFAULT_RELAYS.join(', ')}`,
   args: {
     relays: tool.schema
       .string()
@@ -55,9 +55,10 @@ export const connect = tool({
       : undefined;
 
     try {
-      // Use two-step flow: just generate QR code, don't wait for completion
-      const result = await signer.initiateConnection(relays);
-      return `${result}\n\nAfter scanning the QR code, run shakespeare_complete to finish the connection.`;
+      // Use blocking connect - waits for QR scan and approval
+      const result = await signer.connect(relays);
+      await updateOpencodeAuth();
+      return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       return `Connection failed: ${message}`;
