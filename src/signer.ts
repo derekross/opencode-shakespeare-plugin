@@ -121,12 +121,7 @@ export class ShakespeareSigner {
    */
   private get pool(): SimplePool {
     if (!this._pool) {
-      const restoreConsole = suppressConsole();
-      try {
-        this._pool = new SimplePool();
-      } finally {
-        restoreConsole();
-      }
+      this._pool = new SimplePool();
     }
     return this._pool;
   }
@@ -213,33 +208,26 @@ export class ShakespeareSigner {
       throw new Error('No auth state found. Use shakespeare_connect first.');
     }
     
-    // Suppress nostr-tools relay messages during signer creation
-    const restoreConsole = suppressConsole();
+    const bunkerPointer = {
+      pubkey: state.bunkerPubkey,
+      relays: state.relays,
+      secret: null,
+    };
     
-    try {
-      const bunkerPointer = {
-        pubkey: state.bunkerPubkey,
-        relays: state.relays,
-        secret: null,
-      };
-      
-      // Try fromBunker (nostr-tools 2.19+), fall back to constructor (2.15-2.18)
-      if (typeof (BunkerSigner as any).fromBunker === 'function') {
-        this.bunkerSigner = (BunkerSigner as any).fromBunker(
-          this.clientSecretKey,
-          bunkerPointer,
-          { pool: this.pool }
-        );
-      } else {
-        // Older versions have public constructor
-        this.bunkerSigner = new (BunkerSigner as any)(
-          this.clientSecretKey,
-          bunkerPointer,
-          { pool: this.pool }
-        );
-      }
-    } finally {
-      restoreConsole();
+    // Try fromBunker (nostr-tools 2.19+), fall back to constructor (2.15-2.18)
+    if (typeof (BunkerSigner as any).fromBunker === 'function') {
+      this.bunkerSigner = (BunkerSigner as any).fromBunker(
+        this.clientSecretKey,
+        bunkerPointer,
+        { pool: this.pool }
+      );
+    } else {
+      // Older versions have public constructor
+      this.bunkerSigner = new (BunkerSigner as any)(
+        this.clientSecretKey,
+        bunkerPointer,
+        { pool: this.pool }
+      );
     }
   }
 
