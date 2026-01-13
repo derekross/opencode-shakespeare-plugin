@@ -10,6 +10,26 @@ import { BunkerSigner } from 'nostr-tools/nip46';
 import { SimplePool } from 'nostr-tools/pool';
 
 /**
+ * Suppress all console output during nostr-tools operations
+ * to prevent relay NOTICE/disconnect messages from polluting the UI
+ */
+function suppressConsole(): () => void {
+  const originalDebug = console.debug;
+  const originalWarn = console.warn;
+  const originalLog = console.log;
+  
+  console.debug = () => {};
+  console.warn = () => {};
+  console.log = () => {};
+  
+  return () => {
+    console.debug = originalDebug;
+    console.warn = originalWarn;
+    console.log = originalLog;
+  };
+}
+
+/**
  * Create a nostrconnect:// URI manually
  * (createNostrConnectURI was added in nostr-tools 2.19+, so we build it ourselves for compatibility)
  */
@@ -114,8 +134,7 @@ export class ShakespeareSigner {
           this.relays = state.relays;
           
           // Suppress nostr-tools relay messages during restore
-          const originalDebug = console.debug;
-          console.debug = () => {};
+          const restoreConsole = suppressConsole();
           
           try {
             // Recreate BunkerSigner from stored state
@@ -140,7 +159,7 @@ export class ShakespeareSigner {
               );
             }
           } finally {
-            console.debug = originalDebug;
+            restoreConsole();
           }
           
           return true;
@@ -189,8 +208,7 @@ export class ShakespeareSigner {
     }
     
     // Suppress nostr-tools relay messages during signer creation
-    const originalDebug = console.debug;
-    console.debug = () => {};
+    const restoreConsole = suppressConsole();
     
     try {
       const bunkerPointer = {
@@ -215,7 +233,7 @@ export class ShakespeareSigner {
         );
       }
     } finally {
-      console.debug = originalDebug;
+      restoreConsole();
     }
   }
 
@@ -421,14 +439,13 @@ export class ShakespeareSigner {
   async signEvent(eventTemplate: EventTemplate): Promise<VerifiedEvent> {
     this.ensureBunkerSigner();
     
-    // Suppress nostr-tools relay NOTICE messages during signing
-    const originalDebug = console.debug;
-    console.debug = () => {};
+    // Suppress nostr-tools relay messages during signing
+    const restoreConsole = suppressConsole();
     
     try {
       return await this.bunkerSigner!.signEvent(eventTemplate);
     } finally {
-      console.debug = originalDebug;
+      restoreConsole();
     }
   }
 
