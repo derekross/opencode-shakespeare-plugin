@@ -36,7 +36,7 @@ export const connect = tool({
     relays: tool.schema
       .string()
       .optional()
-      .describe('Comma-separated list of relay URLs to use for NIP-46 communication. Defaults to wss://relay.ditto.pub,wss://relay.primal.net'),
+      .describe(`Comma-separated list of relay URLs to use for NIP-46 communication. Defaults to ${DEFAULT_RELAYS.join(', ')}`),
   },
   async execute(args) {
     const signer = getSigner();
