@@ -60,7 +60,7 @@ function createNostrConnectURI(params: {
 }
 import type { EventTemplate, VerifiedEvent } from 'nostr-tools';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
-import { loadAuthState, saveAuthState, clearAuthState, type AuthState } from './storage.js';
+import { loadAuthState, saveAuthState, clearAuthState, type AuthState, savePendingConnection, loadPendingConnection, clearPendingConnection, type PendingConnectionState } from './storage.js';
 import { displayQRCode, formatConnectionInstructions } from './qrcode.js';
 
 /** Default relays for NIP-46 communication */
@@ -92,12 +92,35 @@ export interface SignerStatus {
 }
 
 /**
- * Pending connection state for two-step connect flow
+ * Pending connection state for two-step connect flow (in-memory)
  */
 interface PendingConnection {
   clientSecretKey: Uint8Array;
   nostrconnectUri: string;
   relays: string[];
+}
+
+/**
+ * Load pending connection from disk and convert to in-memory format
+ */
+function loadPendingConnectionFromDisk(): PendingConnection | null {
+  const state = loadPendingConnection();
+  if (!state) return null;
+  
+  try {
+    const decoded = nip19.decode(state.clientSecretKey);
+    if (decoded.type === 'nsec') {
+      return {
+        clientSecretKey: decoded.data,
+        nostrconnectUri: state.nostrconnectUri,
+        relays: state.relays,
+      };
+    }
+  } catch {
+    // Invalid state, clear it
+    clearPendingConnection();
+  }
+  return null;
 }
 
 /**
@@ -351,12 +374,20 @@ export class ShakespeareSigner {
       perms: ['sign_event'],
     });
 
-    // Save pending connection state
+    // Save pending connection state (both in-memory and to disk)
     this.pendingConnection = {
       clientSecretKey,
       nostrconnectUri,
       relays: this.relays,
     };
+    
+    // Persist to disk so it survives process restarts
+    savePendingConnection({
+      clientSecretKey: nip19.nsecEncode(clientSecretKey),
+      nostrconnectUri,
+      relays: this.relays,
+      createdAt: Date.now(),
+    });
 
     // Generate QR code
     const qrString = await displayQRCode(nostrconnectUri, { small: false });
@@ -367,18 +398,26 @@ export class ShakespeareSigner {
    * Check if there's a pending connection waiting to be completed
    */
   hasPendingConnection(): boolean {
-    return this.pendingConnection !== null;
+    // Check in-memory first, then disk
+    if (this.pendingConnection !== null) return true;
+    return loadPendingConnection() !== null;
   }
 
   /**
    * Complete a pending connection (step 2 of two-step flow)
    */
   async completeConnection(timeoutMs: number = CONNECTION_TIMEOUT): Promise<string> {
-    if (!this.pendingConnection) {
+    // Try to load from memory first, then from disk
+    let pending = this.pendingConnection;
+    if (!pending) {
+      pending = loadPendingConnectionFromDisk();
+    }
+    
+    if (!pending) {
       throw new Error('No pending connection. Run shakespeare_connect first.');
     }
 
-    const { clientSecretKey, nostrconnectUri, relays } = this.pendingConnection;
+    const { clientSecretKey, nostrconnectUri, relays } = pending;
     
     try {
       // Wait for bunker to connect
@@ -406,13 +445,15 @@ export class ShakespeareSigner {
       };
       saveAuthState(state);
 
-      // Clear pending connection
+      // Clear pending connection (both in-memory and disk)
       this.pendingConnection = null;
+      clearPendingConnection();
 
       return `Connected successfully!\nUser pubkey: ${this.getUserNpub()}`;
     } catch (error) {
-      // Clear pending on failure
+      // Clear pending on failure (both in-memory and disk)
       this.pendingConnection = null;
+      clearPendingConnection();
       throw error;
     }
   }
