@@ -91,6 +91,13 @@ export function getConfigDir(): string {
   return CONFIG_DIR;
 }
 
+/**
+ * Get the auth file path
+ */
+export function getAuthFilePath(): string {
+  return AUTH_FILE;
+}
+
 export interface PendingConnection {
   clientSecretKey: string;
   clientPubkey: string;

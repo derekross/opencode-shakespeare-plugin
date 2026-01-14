@@ -10,7 +10,7 @@ import { xdgData } from 'xdg-basedir';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { getSigner } from './signer.js';
-import { loadAuthState } from './storage.js';
+import { loadAuthState, getAuthFilePath } from './storage.js';
 import { nip19 } from 'nostr-tools';
 
 /** Shakespeare AI API base URL */
@@ -121,7 +121,10 @@ function createNip98Fetch(): typeof fetch {
   // Check auth state directly from file to handle module isolation
   const authState = loadAuthState();
   if (!authState) {
-    throw new Error('Not connected to Nostr. Use shakespeare_connect first.');
+    throw new Error(
+      'Not connected to Nostr. Run shakespeare_connect to authenticate.\n' +
+      `Auth file location: ${getAuthFilePath()}`
+    );
   }
   
   // Get or restore the signer
@@ -129,7 +132,11 @@ function createNip98Fetch(): typeof fetch {
   
   // If signer isn't connected but we have auth state, it should restore automatically
   if (!signer.isConnected()) {
-    throw new Error('Failed to restore Nostr connection. Try shakespeare_connect again.');
+    throw new Error(
+      'Failed to restore Nostr connection from saved credentials.\n' +
+      'This can happen if the auth state is corrupted.\n' +
+      'Try running shakespeare_disconnect then shakespeare_connect again.'
+    );
   }
 
   // Create NIP98Client with our NIP-46 signer adapter
