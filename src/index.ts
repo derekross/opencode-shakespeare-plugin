@@ -6,9 +6,7 @@
  * with AI assistance.
  */
 
-import type { Plugin, Hooks, PluginInput } from '@opencode-ai/plugin';
-import fs from 'node:fs';
-import path from 'node:path';
+import type { Plugin, PluginInput } from '@opencode-ai/plugin';
 
 // Import tools
 import { connect } from './tools/connect.js';
@@ -22,122 +20,7 @@ import { deploy } from './tools/deploy.js';
 import { ngit } from './tools/ngit.js';
 
 // Import provider integration
-import { configureShakespeareProvider, shakespeareAuth, SHAKESPEARE_BASE_URL } from './provider.js';
-
-/**
- * Fetch Shakespeare AI models and create provider config
- */
-async function fetchShakespeareModels(): Promise<Record<string, any>> {
-  try {
-    const response = await fetch(`${SHAKESPEARE_BASE_URL}/models`, {
-      signal: AbortSignal.timeout(5000),
-    });
-    const { data } = await response.json();
-    
-    const models: Record<string, any> = {};
-    for (const model of data) {
-      if (!model.type || model.type === 'chat') {
-        models[model.id] = {
-          name: model.name,
-          limit: {
-            context: model.context_window || 128000,
-            output: 8192,
-          },
-          cost: {
-            input: parseFloat(model.pricing?.prompt) || 0,
-            output: parseFloat(model.pricing?.completion) || 0,
-            cache_read: 0,
-            cache_write: 0,
-          },
-          tool_call: true,
-          temperature: true,
-          attachment: true,
-          reasoning: false,
-          modalities: {
-            input: ['text', 'image'],
-            output: ['text'],
-          },
-        };
-      }
-    }
-    return models;
-  } catch {
-    // Return default models if fetch fails
-    return {
-      'claude-sonnet-4.5': {
-        name: 'Claude Sonnet 4.5',
-        limit: { context: 200000, output: 8192 },
-        cost: { input: 0.000003, output: 0.000015, cache_read: 0, cache_write: 0 },
-        tool_call: true,
-        temperature: true,
-        attachment: true,
-        modalities: { input: ['text', 'image'], output: ['text'] },
-      },
-      'claude-opus-4.5': {
-        name: 'Claude Opus 4.5',
-        limit: { context: 200000, output: 8192 },
-        cost: { input: 0.000005, output: 0.000025, cache_read: 0, cache_write: 0 },
-        tool_call: true,
-        temperature: true,
-        attachment: true,
-        modalities: { input: ['text', 'image'], output: ['text'] },
-      },
-    };
-  }
-}
-
-/**
- * Get the global OpenCode config directory
- */
-function getGlobalConfigDir(): string {
-  const home = process.env.HOME || process.env.USERPROFILE || '';
-  return path.join(home, '.config', 'opencode');
-}
-
-/**
- * Ensure Shakespeare provider is configured globally
- */
-async function ensureProviderConfig(): Promise<void> {
-  const globalConfigDir = getGlobalConfigDir();
-  const configPath = path.join(globalConfigDir, 'opencode.json');
-  
-  // Ensure directory exists
-  if (!fs.existsSync(globalConfigDir)) {
-    fs.mkdirSync(globalConfigDir, { recursive: true });
-  }
-  
-  let config: any = {};
-  try {
-    const content = fs.readFileSync(configPath, 'utf-8');
-    config = JSON.parse(content);
-  } catch {
-    // No existing config, will create new one
-    config = { "$schema": "https://opencode.ai/config.json" };
-  }
-  
-  // Check if shakespeare provider already exists with models
-  if (config.provider?.shakespeare?.models && Object.keys(config.provider.shakespeare.models).length > 0) {
-    return; // Already configured
-  }
-  
-  // Fetch models and add provider config
-  const models = await fetchShakespeareModels();
-  
-  config.provider = config.provider || {};
-  config.provider.shakespeare = {
-    name: 'Shakespeare AI',
-    api: SHAKESPEARE_BASE_URL,
-    npm: '@ai-sdk/openai-compatible',
-    models,
-  };
-  
-  // Write updated config to global directory
-  fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-}
-
-// Note: We intentionally don't re-export signer/storage modules here
-// as it causes issues with OpenCode's plugin loading.
-// Tools import these modules directly as needed.
+import { configureShakespeareProvider, shakespeareAuth } from './provider.js';
 
 /**
  * Shakespeare Plugin for OpenCode
@@ -159,9 +42,6 @@ async function ensureProviderConfig(): Promise<void> {
  * Then run `shakespeare_connect` to authenticate via QR code.
  */
 export const ShakespearePlugin: Plugin = async (_input: PluginInput) => {
-  // Auto-configure Shakespeare provider in the global opencode.json
-  await ensureProviderConfig();
-  
   return {
     // Register Shakespeare AI provider
     config: configureShakespeareProvider,
