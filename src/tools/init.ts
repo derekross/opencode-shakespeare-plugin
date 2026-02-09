@@ -4,7 +4,7 @@
  */
 
 import { tool } from '@opencode-ai/plugin';
-import { existsSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 const MKSTACK_REPO = 'https://gitlab.com/soapbox-pub/mkstack.git';

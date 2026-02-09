@@ -41,19 +41,25 @@ export async function configureShakespeareProvider(input: any): Promise<void> {
         signal: AbortSignal.timeout(5000),
       });
 
-      const { data } = await response.json();
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
 
-      // Add minimal model config - OpenCode will fill in defaults
-      provider.models = {};
-      for (const model of data) {
-        if (!model.type || model.type === 'chat') {
-          provider.models[model.id] = {
-            name: model.name,
-          };
+      const body = await response.json();
+
+      // Validate response shape before using it
+      if (body && Array.isArray(body.data)) {
+        provider.models = {};
+        for (const model of body.data) {
+          if (model && model.id && (!model.type || model.type === 'chat')) {
+            provider.models[model.id] = {
+              name: model.name || model.id,
+            };
+          }
         }
       }
     } catch {
-      // Ignore errors fetching models
+      // Ignore errors fetching models — they'll be fetched on next startup
     }
   }
 
@@ -78,36 +84,38 @@ function createNostrSigner(): NostrSigner {
 }
 
 /**
- * Create a fetch wrapper that adds NIP-98 authentication to requests
+ * Create a fetch wrapper that adds NIP-98 authentication to requests.
+ * 
+ * The returned function lazily checks connection state at fetch time,
+ * not at construction time. This avoids errors during plugin initialization
+ * when the user hasn't connected yet.
  */
 function createNip98Fetch(): typeof fetch {
-  // Check auth state directly from file to handle module isolation
-  const authState = loadAuthState();
-  if (!authState) {
-    throw new Error(
-      'Not connected to Nostr. Run shakespeare_connect to authenticate.\n' +
-      `Auth file location: ${getAuthFilePath()}`
-    );
-  }
-  
-  // Get or restore the signer
-  const signer = getSigner();
-  
-  // If signer isn't connected but we have auth state, it should restore automatically
-  if (!signer.isConnected()) {
-    throw new Error(
-      'Failed to restore Nostr connection from saved credentials.\n' +
-      'This can happen if the auth state is corrupted.\n' +
-      'Try running shakespeare_disconnect then shakespeare_connect again.'
-    );
-  }
-
-  // Create NIP98Client with our NIP-46 signer adapter
-  const nip98Client = new NIP98Client({
-    signer: createNostrSigner(),
-  });
-
   return (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    // Check auth state at request time, not at construction time
+    const authState = loadAuthState();
+    if (!authState) {
+      return Promise.reject(new Error(
+        'Not connected to Nostr. Run shakespeare_connect to authenticate.\n' +
+        `Auth file location: ${getAuthFilePath()}`
+      ));
+    }
+    
+    // Verify the signer can be restored
+    const signer = getSigner();
+    if (!signer.isConnected()) {
+      return Promise.reject(new Error(
+        'Failed to restore Nostr connection from saved credentials.\n' +
+        'This can happen if the auth state is corrupted.\n' +
+        'Try running shakespeare_disconnect then shakespeare_connect again.'
+      ));
+    }
+
+    // Create NIP98Client with our NIP-46 signer adapter
+    const nip98Client = new NIP98Client({
+      signer: createNostrSigner(),
+    });
+
     return nip98Client.fetch(input, init);
   };
 }
@@ -122,10 +130,8 @@ export const shakespeareAuth = {
   provider: 'shakespeare',
   
   /**
-   * Loader that returns a NIP-98 authenticated fetch function
-   * Uses our NIP-46 signer instead of requiring an nsec
-   * 
-   * Note: Models are configured via the config hook, not here.
+   * Loader that returns a NIP-98 authenticated fetch function.
+   * The fetch function lazily checks auth state so this loader never throws.
    */
   async loader(_getAuth: () => Promise<any>, _provider: any) {
     return {

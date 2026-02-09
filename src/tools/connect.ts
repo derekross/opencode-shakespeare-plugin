@@ -5,30 +5,7 @@
 
 import { tool } from '@opencode-ai/plugin';
 import { getSigner, DEFAULT_RELAYS } from '../signer.js';
-import { xdgData } from 'xdg-basedir';
-import fs from 'node:fs/promises';
-import path from 'node:path';
-
-/**
- * Update OpenCode's auth.json to reflect the connection status
- */
-async function updateOpencodeAuth(): Promise<void> {
-  if (!xdgData) return;
-  
-  const authPath = path.join(xdgData, 'opencode', 'auth.json');
-  const text = await fs.readFile(authPath, 'utf-8').catch(() => '{}');
-  const data = (() => {
-    try {
-      return JSON.parse(text);
-    } catch {
-      return {};
-    }
-  })();
-  
-  data['shakespeare'] = { type: 'api', key: 'nostr-nip46-connected' };
-  await fs.mkdir(path.dirname(authPath), { recursive: true });
-  await fs.writeFile(authPath, JSON.stringify(data, null, 2));
-}
+import { updateOpencodeAuth } from '../opencode-auth.js';
 
 export const connect = tool({
   description: `Generate a nostrconnect:// URI and QR code for NIP-46 remote signing. Scan the QR code with Amber (Android) or Primal (Android/iOS) to connect. This will wait up to 5 minutes for you to scan and approve. Default relays: ${DEFAULT_RELAYS.join(', ')}`,
